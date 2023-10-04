@@ -28,7 +28,18 @@ struct MusicPlayerView: View {
                 .frame(width: 200, height: 200)
                 .padding()
 
-            Slider(value: $sliderValue, in: 0 ... songLength)
+            // Calculate current time
+            let currentMinutes = Int(audioPlayer.currentTime / 60)
+            let currentSeconds = Int(audioPlayer.currentTime.truncatingRemainder(dividingBy: 60))
+            let formattedCurrentTime = String(format: "%02d:%02d", currentMinutes, currentSeconds)
+
+            // Calculate total time
+            let totalMinutes = Int(songLength / 60)
+            let totalSeconds = Int(songLength.truncatingRemainder(dividingBy: 60))
+            let formattedSongLength = String(format: "%02d:%02d", totalMinutes, totalSeconds)
+
+            Text("\(formattedCurrentTime) / \(formattedSongLength)")
+            Slider(value: $audioPlayer.currentTime, in: 0 ... songLength)
                 .padding()
                 .onChange(of: sliderValue) { _, newSliderValue in
                     audioPlayer.seek(to: newSliderValue)
@@ -78,8 +89,18 @@ struct MusicPlayerView: View {
 class AudioPlayer: ObservableObject {
     private var audioPlayer: AVPlayer?
     @Published var isPlaying = false
+    @Published var currentTime: Double = 0
+
+    func addPeriodicTimeObserver() {
+        let timeInterval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+
+        audioPlayer?.addPeriodicTimeObserver(forInterval: timeInterval, queue: .main) { time in
+            self.currentTime = time.seconds
+        }
+    }
 
     func setupAudioPlayer(with url: String) {
+        stopAudio() // Stop current song
         guard let url = URL(string: url) else {
             print(url)
             print("Invalid url...\(url)")
@@ -87,9 +108,11 @@ class AudioPlayer: ObservableObject {
         }
         audioPlayer = AVPlayer(url: url)
         playAudio()
+        addPeriodicTimeObserver()
     }
 
     func playAudio() {
+        audioPlayer?.seek(to: CMTime.zero) // Seek to 0
         audioPlayer?.play()
         isPlaying = true
     }
@@ -105,6 +128,11 @@ class AudioPlayer: ObservableObject {
 
     func seek(to seconds: Double) {
         audioPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 1000))
+    }
+
+    func stopAudio() {
+        audioPlayer?.pause()
+        audioPlayer = nil
     }
 }
 
