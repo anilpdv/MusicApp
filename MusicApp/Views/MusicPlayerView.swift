@@ -9,7 +9,7 @@ import AVKit
 import SwiftUI
 
 struct MusicPlayerView: View {
-    @StateObject var audioPlayer = AudioPlayer()
+    @StateObject var audioPlayer = AudioPlayer.shared
     @State var sliderValue: Double = 0
     var songLength: Double
     @State var albumArt: Image = Image(systemName: "photo")
@@ -39,7 +39,7 @@ struct MusicPlayerView: View {
             let formattedSongLength = String(format: "%02d:%02d", totalMinutes, totalSeconds)
 
             Text("\(formattedCurrentTime) / \(formattedSongLength)")
-            Slider(value: $audioPlayer.currentTime, in: 0 ... songLength)
+            Slider(value: $sliderValue, in: 0 ... songLength)
                 .padding()
                 .onChange(of: sliderValue) { _, newSliderValue in
                     audioPlayer.seek(to: newSliderValue)
@@ -82,6 +82,10 @@ struct MusicPlayerView: View {
         }
         .onAppear {
             audioPlayer.setupAudioPlayer(with: url)
+            audioPlayer.$currentTime
+                .sink { time in
+                    sliderValue = time
+                }
         }
     }
 }
@@ -90,6 +94,7 @@ class AudioPlayer: ObservableObject {
     private var audioPlayer: AVPlayer?
     @Published var isPlaying = false
     @Published var currentTime: Double = 0
+    static let shared = AudioPlayer()
 
     func addPeriodicTimeObserver() {
         let timeInterval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -101,6 +106,7 @@ class AudioPlayer: ObservableObject {
 
     func setupAudioPlayer(with url: String) {
         stopAudio() // Stop current song
+        currentTime = 0
         guard let url = URL(string: url) else {
             print(url)
             print("Invalid url...\(url)")
