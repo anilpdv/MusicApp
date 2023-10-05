@@ -13,12 +13,17 @@ struct MusicPlayerView: View {
     @State var sliderValue: Double = 0
     @State var isDragging: Bool = false
     @State var albumArt: Image = Image(systemName: "photo")
+    @State var showPlaylist = false
+    var songViewModel = SongViewModel()
+
+    var songId: String
     var url: String
     var songLength: Double
     var imageUrl: String
     var songTitle: String
 
-    init(url: String, songLength: Double, imageUrl: String, songTitle: String) {
+    init(songId: String, url: String, songLength: Double, imageUrl: String, songTitle: String) {
+        self.songId = songId
         self.url = url
         self.songLength = songLength
         self.imageUrl = imageUrl
@@ -71,7 +76,7 @@ struct MusicPlayerView: View {
 
             HStack {
                 Button(action: {
-                    // Add your logic for previous song
+                    showPlaylist.toggle()
                 }) {
                     Image(systemName: "music.note.list")
                         .resizable()
@@ -127,16 +132,35 @@ struct MusicPlayerView: View {
                 }
             }
 
-        }.padding()
-            .onChange(of: audioPlayer.currentTime, { _, newValue in
-                if !isDragging {
-                    sliderValue = newValue
-                }
+        }.sheet(isPresented: $showPlaylist, content: {
+            NavigationStack {
+                List(songViewModel.relatedSongs, id: \.id) { song in
+                    let imageUrl = song.thumbnails[safe: 1]?.url ?? song.thumbnails[safe: 0]?.url
 
-            })
-            .onAppear {
+                    NavigationLink {
+                        MusicPlayerView(songId: song.id, url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/\(song.id)/\(song.title).mp3", songLength: song.duration ?? 200, imageUrl: imageUrl ?? "", songTitle: song.title)
+                    } label: {
+                        SongItemView(song: song, imageUrl: imageUrl ?? "")
+                    }
+                }
+            }
+        }).onAppear {
+            Task {
+                songViewModel.fetchRelatedSongsById(id: songId)
+            }
+        }
+        .padding()
+        .onChange(of: audioPlayer.currentTime, { _, newValue in
+            if !isDragging {
+                sliderValue = newValue
+            }
+
+        })
+        .onAppear {
+            Task {
                 audioPlayer.setupAudioPlayer(with: url)
             }
+        }
     }
 }
 
@@ -198,7 +222,7 @@ class AudioPlayer: ObservableObject {
         audioPlayer = nil
     }
 }
-
-#Preview {
-    MusicPlayerView(url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/8JMMjCyyznI/mary%20on%20cross", songLength: 200, imageUrl: "https://i.ytimg.com/vi/KOrXKiSy8ZY/hqdefault.jpg?sqp=-oaymwE9CNACELwBSFryq4qpAy8IARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBLKFUwDw==&rs=AOn4CLDWyiNMrqa4UfmFSo5x3oUfzheHGQ", songTitle: "Mary on Cross")
-}
+//
+// #Preview {
+//    MusicPlayerView(songId: "k5mX3NkA7jM", url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/8JMMjCyyznI/mary%20on%20cross", songLength: 200, imageUrl: "https://i.ytimg.com/vi/KOrXKiSy8ZY/hqdefault.jpg?sqp=-oaymwE9CNACELwBSFryq4qpAy8IARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBLKFUwDw==&rs=AOn4CLDWyiNMrqa4UfmFSo5x3oUfzheHGQ", songTitle: "Mary on Cross")
+// }

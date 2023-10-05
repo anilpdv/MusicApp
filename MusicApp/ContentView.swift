@@ -15,7 +15,8 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             SongList()
-        }.preferredColorScheme(.dark)
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

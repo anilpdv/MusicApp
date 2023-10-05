@@ -5,8 +5,8 @@
 //  Created by anil pdv on 04/10/23.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct MusicAppApp: App {
