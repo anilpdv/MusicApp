@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B742125F2ACE90F6000BE177 /* ImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B742125E2ACE90F6000BE177 /* ImageView.swift */; };
 		B76E276A2ACD16B8009B329D /* MusicAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76E27692ACD16B8009B329D /* MusicAppApp.swift */; };
 		B76E276C2ACD16B8009B329D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76E276B2ACD16B8009B329D /* ContentView.swift */; };
 		B76E276E2ACD16B8009B329D /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76E276D2ACD16B8009B329D /* Item.swift */; };
@@ -19,6 +20,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B742125E2ACE90F6000BE177 /* ImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageView.swift; sourceTree = "<group>"; };
+		B74212602ACF1237000BE177 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B76E27662ACD16B8009B329D /* MusicApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B76E27692ACD16B8009B329D /* MusicAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAppApp.swift; sourceTree = "<group>"; };
 		B76E276B2ACD16B8009B329D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -42,6 +45,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B742125D2ACE90EC000BE177 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				B742125E2ACE90F6000BE177 /* ImageView.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
 		B76E275D2ACD16B8009B329D = {
 			isa = PBXGroup;
 			children = (
@@ -61,6 +72,8 @@
 		B76E27682ACD16B8009B329D /* MusicApp */ = {
 			isa = PBXGroup;
 			children = (
+				B74212602ACF1237000BE177 /* Info.plist */,
+				B742125D2ACE90EC000BE177 /* Utils */,
 				B76E277D2ACD1A36009B329D /* ViewModel */,
 				B76E277C2ACD1A30009B329D /* Views */,
 				B76E277B2ACD1A2A009B329D /* Model */,
@@ -176,6 +189,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B742125F2ACE90F6000BE177 /* ImageView.swift in Sources */,
 				B76E27832ACD1B7B009B329D /* SongList.swift in Sources */,
 				B76E277F2ACD1A48009B329D /* Song.swift in Sources */,
 				B76E276C2ACD16B8009B329D /* ContentView.swift in Sources */,
@@ -319,6 +333,7 @@
 				DEVELOPMENT_TEAM = HKASHDQXW3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MusicApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -348,6 +363,7 @@
 				DEVELOPMENT_TEAM = HKASHDQXW3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MusicApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

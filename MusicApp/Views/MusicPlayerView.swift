@@ -11,22 +11,34 @@ import SwiftUI
 struct MusicPlayerView: View {
     @StateObject var audioPlayer = AudioPlayer.shared
     @State var sliderValue: Double = 0
-    var songLength: Double
+    @State var isDragging: Bool = false
     @State var albumArt: Image = Image(systemName: "photo")
     var url: String
+    var songLength: Double
+    var imageUrl: String
+    var songTitle: String
 
-    init(url: String, songLength: Double) {
+    init(url: String, songLength: Double, imageUrl: String, songTitle: String) {
         self.url = url
         self.songLength = songLength
+        self.imageUrl = imageUrl
+        self.songTitle = songTitle
     }
 
     var body: some View {
         VStack {
-            albumArt
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 200, height: 200)
+            ImageView(url: imageUrl, frameWidth: 320, frameHeight: 320)
+
+                .cornerRadius(20)
+                .aspectRatio(contentMode: .fill)
+
                 .padding()
+
+            Text(songTitle)
+                .font(.largeTitle)
+                .bold()
+                .foregroundStyle(.white)
+                .lineLimit(1)
 
             // Calculate current time
             let currentMinutes = Int(audioPlayer.currentTime / 60)
@@ -38,55 +50,93 @@ struct MusicPlayerView: View {
             let totalSeconds = Int(songLength.truncatingRemainder(dividingBy: 60))
             let formattedSongLength = String(format: "%02d:%02d", totalMinutes, totalSeconds)
 
-            Text("\(formattedCurrentTime) / \(formattedSongLength)")
-            Slider(value: $sliderValue, in: 0 ... songLength)
-                .padding()
-                .onChange(of: sliderValue) { _, newSliderValue in
-                    audioPlayer.seek(to: newSliderValue)
+            Slider(value: $sliderValue, in: 0 ... songLength, onEditingChanged: { isEditing in
+
+                isDragging = isEditing
+
+            })
+            .accentColor(.white)
+            .padding(.horizontal)
+            .onChange(of: sliderValue) { _, newValue in
+                if isDragging {
+                    audioPlayer.seek(to: newValue)
                 }
+            }
+
+            HStack {
+                Text("\(formattedCurrentTime)")
+                Spacer()
+                Text("\(formattedSongLength)")
+            }.padding(.horizontal)
 
             HStack {
                 Button(action: {
                     // Add your logic for previous song
                 }) {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: "music.note.list")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 30, height: 30)
                         .padding()
+                        .foregroundColor(.white)
                 }
-
+                Spacer()
+                Button(action: {
+                    // Add your logic for previous song
+                }) {
+                    Image(systemName: "backward.end")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .padding()
+                        .foregroundColor(.white)
+                }
+                Spacer()
                 Button(action: {
                     audioPlayer.togglePlayback()
                 }) {
-                    Image(systemName: audioPlayer.isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 70, height: 70)
+                        .frame(width: 40, height: 40)
                         .padding()
+                        .foregroundStyle(.white)
                 }
 
+                Spacer()
                 Button(action: {
                     // Add your logic for next song
                 }) {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: "forward.end")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 30, height: 30)
                         .padding()
+                        .foregroundColor(.white)
+                }
+                Spacer()
+                Button(action: {
+                    // Add your logic for download
+                }) {
+                    Image(systemName: "arrow.down.circle")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .padding()
+                        .foregroundColor(.white)
                 }
             }
-            .padding()
 
-            Spacer()
-        }
-        .onAppear {
-            audioPlayer.setupAudioPlayer(with: url)
-            audioPlayer.$currentTime
-                .sink { time in
-                    sliderValue = time
+        }.padding()
+            .onChange(of: audioPlayer.currentTime, { _, newValue in
+                if !isDragging {
+                    sliderValue = newValue
                 }
-        }
+
+            })
+            .onAppear {
+                audioPlayer.setupAudioPlayer(with: url)
+            }
     }
 }
 
@@ -97,7 +147,7 @@ class AudioPlayer: ObservableObject {
     static let shared = AudioPlayer()
 
     func addPeriodicTimeObserver() {
-        let timeInterval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let timeInterval = CMTime(seconds: 0.01, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
 
         audioPlayer?.addPeriodicTimeObserver(forInterval: timeInterval, queue: .main) { time in
             self.currentTime = time.seconds
@@ -107,6 +157,7 @@ class AudioPlayer: ObservableObject {
     func setupAudioPlayer(with url: String) {
         stopAudio() // Stop current song
         currentTime = 0
+        audioPlayer?.seek(to: CMTime.zero)
         guard let url = URL(string: url) else {
             print(url)
             print("Invalid url...\(url)")
@@ -114,11 +165,16 @@ class AudioPlayer: ObservableObject {
         }
         audioPlayer = AVPlayer(url: url)
         playAudio()
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay, .allowBluetoothA2DP, .allowBluetooth])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Error setting up audio session: \(error.localizedDescription)")
+        }
         addPeriodicTimeObserver()
     }
 
     func playAudio() {
-        audioPlayer?.seek(to: CMTime.zero) // Seek to 0
         audioPlayer?.play()
         isPlaying = true
     }
@@ -134,6 +190,7 @@ class AudioPlayer: ObservableObject {
 
     func seek(to seconds: Double) {
         audioPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 1000))
+        currentTime = seconds
     }
 
     func stopAudio() {
@@ -143,5 +200,5 @@ class AudioPlayer: ObservableObject {
 }
 
 #Preview {
-    MusicPlayerView(url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/8JMMjCyyznI/mary%20on%20cross", songLength: 200)
+    MusicPlayerView(url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/8JMMjCyyznI/mary%20on%20cross", songLength: 200, imageUrl: "https://i.ytimg.com/vi/KOrXKiSy8ZY/hqdefault.jpg?sqp=-oaymwE9CNACELwBSFryq4qpAy8IARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBLKFUwDw==&rs=AOn4CLDWyiNMrqa4UfmFSo5x3oUfzheHGQ", songTitle: "Mary on Cross")
 }

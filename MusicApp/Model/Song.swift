@@ -17,6 +17,7 @@ struct SongElement: Decodable, Hashable, Identifiable {
     let uploadDate: String?
     let description: String
     let duration: Double?
+    let viewCount: Int?
     // Add an `id` property to the struct
     var songID: String {
         return id
