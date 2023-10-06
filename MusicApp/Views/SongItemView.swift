@@ -8,10 +8,10 @@
 import SwiftUI
 
 struct SongItemView: View {
-    let song: SongElement
+    let song: Track
     let imageUrl: String
 
-    init(song: SongElement, imageUrl: String) {
+    init(song: Track, imageUrl: String) {
         self.song = song
         self.imageUrl = imageUrl
     }
@@ -32,15 +32,17 @@ struct SongItemView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 20) {
-            let songLength = song.duration ?? 200
-            let totalMinutes = Int(songLength / 60)
-            let totalSeconds = Int(songLength.truncatingRemainder(dividingBy: 60))
-            let formattedSongLength = String(format: "%02d:%02d", totalMinutes, totalSeconds)
+            let songLength = song.durationMs 
+
+            let totalSeconds = Int(songLength / 1000)
+            let totalMinutes = totalSeconds / 60
+            let remainingSeconds = totalSeconds % 60
+            let formattedSongLength = String(format: "%02d:%02d", totalMinutes, remainingSeconds)
             ImageView(url: imageUrl, frameWidth: 60, frameHeight: 60)
                 .aspectRatio(contentMode: .fill)
                 .cornerRadius(100)
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(song.title)")
+                Text("\(song.name)")
                     .textCase(.lowercase)
                     .lineLimit(2)
                     .font(.subheadline)
@@ -51,7 +53,7 @@ struct SongItemView: View {
                         .foregroundStyle(.gray)
                     Text(".")
                         .foregroundStyle(.gray)
-                    Text(formatViewCount(song.viewCount))
+                    Text("\(song.popularity)")
                         .foregroundStyle(.gray)
                 }
             }

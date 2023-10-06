@@ -9,11 +9,11 @@ import Foundation
 import Observation
 
 @Observable class SongViewModel {
-    var songList = [SongElement]()
-    var relatedSongs = [SongElement]()
+    var songList = [Track]()
+    var relatedSongs = [Track]()
 
     func fetchSongs(query: String) {
-        guard let url = URL(string: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/search/\(query)") else {
+        guard let url = URL(string: "https://warm-river-15003-2ccb4c8eac08.herokuapp.com/search/tracks/\(query)") else {
             print("Invalid URL")
             return
         }
@@ -33,7 +33,7 @@ import Observation
             }
 
             guard (200 ... 299).contains(httpResponse.statusCode) else {
-                print("HTTP response error: \(httpResponse.statusCode)")
+                print("HTTP response error: \(httpResponse.statusCode) fetchSongs")
                 return
             }
 
@@ -43,9 +43,9 @@ import Observation
             }
 
             do {
-                let songList = try JSONDecoder().decode([SongElement].self, from: data)
+                let songList = try JSONDecoder().decode(Song.self, from: data)
                 DispatchQueue.main.async {
-                    self.songList = songList
+                    self.songList = songList.tracks.items
                 }
 
             } catch {
@@ -55,7 +55,7 @@ import Observation
     }
 
     func fetchRelatedSongsById(id: String) {
-        guard let url = URL(string: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/getvideo/\(id)") else {
+        guard let url = URL(string: "https://warm-river-15003-2ccb4c8eac08.herokuapp.com/recommendation/tracks/\(id)/0.4/60") else {
             print("Invalid URL")
             return
         }
@@ -75,7 +75,7 @@ import Observation
             }
 
             guard (200 ... 299).contains(httpResponse.statusCode) else {
-                print("HTTP response error: \(httpResponse.statusCode)")
+                print("HTTP response error: \(httpResponse.statusCode) fetchRelatedSongsById")
                 return
             }
 
@@ -85,15 +85,32 @@ import Observation
             }
 
             do {
-                let relatedSongs = try JSONDecoder().decode([SongElement].self, from: data)
+                let relatedSongs = try JSONDecoder().decode(RelatedSongs.self, from: data)
                 DispatchQueue.main.async {
-                    self.relatedSongs = relatedSongs
+                    self.relatedSongs = relatedSongs.tracks
                 }
-                print(relatedSongs)
 
             } catch {
                 print(String(describing: error))
             }
         }.resume()
     }
+}
+
+@Observable class MusicPlayerStore {
+    var currentSong = CurrentSong(id: "", title: "", imageUrl: "", url: "", duration: 0)
+
+    func setCurrentSong(song: Track) {
+        let imageUrl = song.album.images[1].url
+
+        currentSong = CurrentSong(id: song.id, title: song.name, imageUrl: imageUrl, url: "https://warm-river-15003-2ccb4c8eac08.herokuapp.com/listen/\(song.artists[0].name) - \(song.name)", duration: song.durationMs)
+    }
+}
+
+struct CurrentSong: Identifiable, Hashable, Decodable {
+    var id: String
+    var title: String
+    var imageUrl: String
+    var url: String
+    var duration: Int
 }

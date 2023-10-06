@@ -14,32 +14,20 @@ struct MusicPlayerView: View {
     @State var isDragging: Bool = false
     @State var albumArt: Image = Image(systemName: "photo")
     @State var showPlaylist = false
-    var songViewModel = SongViewModel()
-
-    var songId: String
-    var url: String
-    var songLength: Double
-    var imageUrl: String
-    var songTitle: String
-
-    init(songId: String, url: String, songLength: Double, imageUrl: String, songTitle: String) {
-        self.songId = songId
-        self.url = url
-        self.songLength = songLength
-        self.imageUrl = imageUrl
-        self.songTitle = songTitle
-    }
+    @State var currentSongIndex = 0
+    @Environment(MusicPlayerStore.self) private var musicStore
+    @Environment(SongViewModel.self) private var songViewModel
 
     var body: some View {
         VStack {
-            ImageView(url: imageUrl, frameWidth: 320, frameHeight: 320)
+            ImageView(url: musicStore.currentSong.imageUrl, frameWidth: 320, frameHeight: 320)
 
                 .cornerRadius(20)
                 .aspectRatio(contentMode: .fill)
 
                 .padding()
 
-            Text(songTitle)
+            Text(musicStore.currentSong.title)
                 .font(.largeTitle)
                 .bold()
                 .foregroundStyle(.white)
@@ -51,6 +39,7 @@ struct MusicPlayerView: View {
             let formattedCurrentTime = String(format: "%02d:%02d", currentMinutes, currentSeconds)
 
             // Calculate total time
+            let songLength = Double(musicStore.currentSong.duration) / 1000.0
             let totalMinutes = Int(songLength / 60)
             let totalSeconds = Int(songLength.truncatingRemainder(dividingBy: 60))
             let formattedSongLength = String(format: "%02d:%02d", totalMinutes, totalSeconds)
@@ -88,6 +77,13 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for previous song
+
+                    if currentSongIndex < 0 {
+                        currentSongIndex = songViewModel.relatedSongs.count - 1
+                    }
+                    let song = songViewModel.relatedSongs[currentSongIndex]
+                    musicStore.setCurrentSong(song: song)
+                    currentSongIndex -= 1
                 }) {
                     Image(systemName: "backward.end")
                         .resizable()
@@ -111,6 +107,13 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for next song
+
+                    if currentSongIndex >= songViewModel.relatedSongs.count {
+                        self.currentSongIndex = 0
+                    }
+                    let song = songViewModel.relatedSongs[currentSongIndex]
+                    musicStore.setCurrentSong(song: song)
+                    self.currentSongIndex += 1
                 }) {
                     Image(systemName: "forward.end")
                         .resizable()
@@ -135,30 +138,42 @@ struct MusicPlayerView: View {
         }.sheet(isPresented: $showPlaylist, content: {
             NavigationStack {
                 List(songViewModel.relatedSongs, id: \.id) { song in
-                    let imageUrl = song.thumbnails[safe: 1]?.url ?? song.thumbnails[safe: 0]?.url
+                    let imageUrl = song.album.images[1].url
 
-                    NavigationLink {
-                        MusicPlayerView(songId: song.id, url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/\(song.id)/\(song.title).mp3", songLength: song.duration ?? 200, imageUrl: imageUrl ?? "", songTitle: song.title)
+                    Button {
+                        musicStore.setCurrentSong(song: song)
                     } label: {
-                        SongItemView(song: song, imageUrl: imageUrl ?? "")
+                        SongItemView(song: song, imageUrl: imageUrl)
                     }
                 }
             }
-        }).onAppear {
-            Task {
-                songViewModel.fetchRelatedSongsById(id: songId)
-            }
-        }
+        })
         .padding()
         .onChange(of: audioPlayer.currentTime, { _, newValue in
             if !isDragging {
                 sliderValue = newValue
             }
+            let songLength = Double(musicStore.currentSong.duration) / 1000.0
+            if !isDragging && (newValue + 1) >= songLength {
+                currentSongIndex += 1
+                if currentSongIndex >= songViewModel.relatedSongs.count {
+                    currentSongIndex = 0
+                }
+                let song = songViewModel.relatedSongs[currentSongIndex]
+                musicStore.setCurrentSong(song: song)
+            }
 
         })
         .onAppear {
             Task {
-                audioPlayer.setupAudioPlayer(with: url)
+                print(musicStore.currentSong.url)
+                audioPlayer.setupAudioPlayer(with: musicStore.currentSong.url)
+            }
+        }
+        .onChange(of: musicStore.currentSong) { _, _ in
+            Task {
+                print(musicStore.currentSong.url)
+                audioPlayer.setupAudioPlayer(with: musicStore.currentSong.url)
             }
         }
     }
@@ -179,6 +194,7 @@ class AudioPlayer: ObservableObject {
     }
 
     func setupAudioPlayer(with url: String) {
+        print("Setup started")
         stopAudio() // Stop current song
         currentTime = 0
         audioPlayer?.seek(to: CMTime.zero)
@@ -199,6 +215,7 @@ class AudioPlayer: ObservableObject {
     }
 
     func playAudio() {
+        print("started playing audio")
         audioPlayer?.play()
         isPlaying = true
     }
@@ -222,6 +239,7 @@ class AudioPlayer: ObservableObject {
         audioPlayer = nil
     }
 }
+
 //
 // #Preview {
 //    MusicPlayerView(songId: "k5mX3NkA7jM", url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/8JMMjCyyznI/mary%20on%20cross", songLength: 200, imageUrl: "https://i.ytimg.com/vi/KOrXKiSy8ZY/hqdefault.jpg?sqp=-oaymwE9CNACELwBSFryq4qpAy8IARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBLKFUwDw==&rs=AOn4CLDWyiNMrqa4UfmFSo5x3oUfzheHGQ", songTitle: "Mary on Cross")

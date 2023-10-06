@@ -15,10 +15,13 @@ extension Array {
 }
 
 struct SongList: View {
-    var songViewModel = SongViewModel()
+    @State var songViewModel = SongViewModel()
+    @State var musicStore = MusicPlayerStore()
     @StateObject private var debouncer = Debouncer()
     @State var searchText = ""
     @State var searchTextPublisher = ""
+    @State var showMusicPlayer = false
+    @State var currentId: String = ""
 
     init() {
         songViewModel.fetchSongs(query: "mary on cross")
@@ -26,19 +29,28 @@ struct SongList: View {
 
     var body: some View {
         List(songViewModel.songList, id: \.id) { song in
-            let imageUrl = song.thumbnails[safe: 1]?.url ?? song.thumbnails[safe: 0]?.url
+            let imageUrl = song.album.images[0].url
 
-            NavigationLink {
-                MusicPlayerView(songId: song.id, url: "https://musiq-ecf9a99fa8d9.herokuapp.com/api/listen/\(song.id)/\(song.title).mp3", songLength: song.duration ?? 200, imageUrl: imageUrl ?? "", songTitle: song.title)
+            Button {
+                showMusicPlayer.toggle()
+                currentId = song.id
+                songViewModel.fetchRelatedSongsById(id: currentId)
+                musicStore.setCurrentSong(song: song)
+
             } label: {
-                SongItemView(song: song, imageUrl: imageUrl ?? "")
+                SongItemView(song: song, imageUrl: imageUrl)
             }
         }
         .searchable(text: $debouncer.searchText)
         .onReceive(debouncer.publisher) { debouncedSearchText in
 
             songViewModel.fetchSongs(query: debouncedSearchText)
-        }
+        }.sheet(isPresented: $showMusicPlayer, content: {
+            NavigationStack {
+                MusicPlayerView().environment(musicStore).environment(songViewModel)
+            }
+
+        })
     }
 }
 
