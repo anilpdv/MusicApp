@@ -6,6 +6,7 @@
 //
 
 import AVKit
+import MobileCoreServices
 import SwiftUI
 
 struct MusicPlayerView: View {
@@ -15,8 +16,10 @@ struct MusicPlayerView: View {
     @State var albumArt: Image = Image(systemName: "photo")
     @State var showPlaylist = false
     @State var currentSongIndex = 0
+    @State var currentSong = CurrentSong(id: "", title: "", imageUrl: "", url: "", duration: 0)
     @Environment(MusicPlayerStore.self) private var musicStore
     @Environment(SongViewModel.self) private var songViewModel
+    @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
         VStack {
@@ -77,12 +80,20 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for previous song
-
-                    if currentSongIndex < 0 {
-                        currentSongIndex = songViewModel.relatedSongs.count - 1
+                    if musicStore.currentType == "playlist" {
+                        if currentSongIndex < 0 {
+                            currentSongIndex = songViewModel.playlistRelatedSongs.count - 1
+                        }
+                        let song = songViewModel.playlistRelatedSongs[currentSongIndex]
+                        musicStore.setCurrentSongForPlaylist(song: song)
+                    } else {
+                        if currentSongIndex < 0 {
+                            currentSongIndex = songViewModel.relatedSongs.count - 1
+                        }
+                        let song = songViewModel.relatedSongs[currentSongIndex]
+                        musicStore.setCurrentSong(song: song)
                     }
-                    let song = songViewModel.relatedSongs[currentSongIndex]
-                    musicStore.setCurrentSong(song: song)
+
                     currentSongIndex -= 1
                 }) {
                     Image(systemName: "backward.end")
@@ -107,12 +118,20 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for next song
-
-                    if currentSongIndex >= songViewModel.relatedSongs.count {
-                        self.currentSongIndex = 0
+                    if musicStore.currentType == "playlist" {
+                        if currentSongIndex >= songViewModel.playlistRelatedSongs.count {
+                            self.currentSongIndex = 0
+                        }
+                        let song = songViewModel.playlistRelatedSongs[currentSongIndex]
+                        musicStore.setCurrentSongForPlaylist(song: song)
+                    } else {
+                        if currentSongIndex >= songViewModel.relatedSongs.count {
+                            self.currentSongIndex = 0
+                        }
+                        let song = songViewModel.relatedSongs[currentSongIndex]
+                        musicStore.setCurrentSong(song: song)
                     }
-                    let song = songViewModel.relatedSongs[currentSongIndex]
-                    musicStore.setCurrentSong(song: song)
+
                     self.currentSongIndex += 1
                 }) {
                     Image(systemName: "forward.end")
@@ -125,6 +144,7 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for download
+
                 }) {
                     Image(systemName: "arrow.down.circle")
                         .resizable()
@@ -134,27 +154,54 @@ struct MusicPlayerView: View {
                         .foregroundColor(.white)
                 }
             }
+        }
 
-        }.sheet(isPresented: $showPlaylist, content: {
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "arrowtriangle.down.circle")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .padding()
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .sheet(isPresented: $showPlaylist, content: {
             NavigationStack {
-                List(songViewModel.relatedSongs, id: \.id) { song in
-                    let imageUrl = song.album.images[1].url
+                if musicStore.currentType == "playlist" {
+                    List(songViewModel.playlistRelatedSongs, id: \.track.id) { song in
 
-                    Button {
-                        musicStore.setCurrentSong(song: song)
-                    } label: {
-                        SongItemView(song: song, imageUrl: imageUrl)
+                        Button {
+                            musicStore.setCurrentSongForPlaylist(song: song)
+                        } label: {
+                            SongDetailView(song: song)
+                        }
+                    }
+                } else {
+                    List(songViewModel.relatedSongs, id: \.id) { song in
+                        let imageUrl = song.album.images[1].url
+
+                        Button {
+                            musicStore.setCurrentSong(song: song)
+                        } label: {
+                            SongItemView(song: song, imageUrl: imageUrl)
+                        }
                     }
                 }
             }
         })
+
         .padding()
         .onChange(of: audioPlayer.currentTime, { _, newValue in
             if !isDragging {
                 sliderValue = newValue
             }
             let songLength = Double(musicStore.currentSong.duration) / 1000.0
-            if !isDragging && (newValue + 1) >= songLength {
+            if !isDragging && newValue >= songLength {
                 currentSongIndex += 1
                 if currentSongIndex >= songViewModel.relatedSongs.count {
                     currentSongIndex = 0
@@ -166,14 +213,17 @@ struct MusicPlayerView: View {
         })
         .onAppear {
             Task {
-                print(musicStore.currentSong.url)
-                audioPlayer.setupAudioPlayer(with: musicStore.currentSong.url)
+                if songViewModel.currentSong.id != musicStore.currentSong.id {
+                    print(musicStore.currentSong.url)
+                    audioPlayer.setupAudioPlayer(with: musicStore.currentSong.url)
+                    songViewModel.setCurrentSong(song: musicStore.currentSong)
+                }
             }
         }
-        .onChange(of: musicStore.currentSong) { _, _ in
+        .onChange(of: musicStore.currentSong) { _, currentSong in
             Task {
-                print(musicStore.currentSong.url)
-                audioPlayer.setupAudioPlayer(with: musicStore.currentSong.url)
+                audioPlayer.setupAudioPlayer(with: currentSong.url)
+                songViewModel.setCurrentSong(song: currentSong)
             }
         }
     }

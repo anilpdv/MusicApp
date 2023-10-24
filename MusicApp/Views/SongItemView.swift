@@ -10,29 +10,16 @@ import SwiftUI
 struct SongItemView: View {
     let song: Track
     let imageUrl: String
-
+    @Environment(MusicPlayerStore.self) private var musicStore
+    @State private var isPlayingAnimation = false
     init(song: Track, imageUrl: String) {
         self.song = song
         self.imageUrl = imageUrl
     }
 
-    func formatViewCount(_ count: Int?) -> String {
-        guard let count = count else {
-            return "0"
-        }
-
-        if count < 1000 {
-            return "\(count)"
-        } else if count < 1000000 {
-            return "\(count / 1000)K"
-        } else {
-            return "\(count / 1000000)M"
-        }
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 20) {
-            let songLength = song.durationMs 
+            let songLength = song.durationMs
 
             let totalSeconds = Int(songLength / 1000)
             let totalMinutes = totalSeconds / 60
@@ -43,7 +30,6 @@ struct SongItemView: View {
                 .cornerRadius(100)
             VStack(alignment: .leading, spacing: 8) {
                 Text("\(song.name)")
-                    .textCase(.lowercase)
                     .lineLimit(2)
                     .font(.subheadline)
                     .foregroundStyle(.white)
@@ -51,11 +37,24 @@ struct SongItemView: View {
                 HStack(alignment: .center) {
                     Text(formattedSongLength)
                         .foregroundStyle(.gray)
-                    Text(".")
-                        .foregroundStyle(.gray)
-                    Text("\(song.popularity)")
-                        .foregroundStyle(.gray)
                 }
+            }
+            Spacer()
+            if musicStore.currentSong.id == song.id {
+                Image(systemName: "waveform")
+                    .font(.system(size: 25))
+                    .padding()
+                    .scaleEffect(isPlayingAnimation ? 1.05 : 1.0)
+                    .onAppear {
+                        withAnimation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            isPlayingAnimation = true
+                        }
+                    }
+                    .onDisappear {
+                        withAnimation {
+                            isPlayingAnimation = false
+                        }
+                    }
             }
         }
     }

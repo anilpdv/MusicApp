@@ -11,11 +11,38 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
-
+    @State var musicStore = MusicPlayerStore()
     var body: some View {
-        NavigationStack {
-            SongList()
+        TabView {
+            NavigationStack {
+                HomeView()
+            }
+            .tabItem {
+                Label("Home", systemImage: "house")
+            }
+
+            NavigationStack {
+                SongList()
+            }
+            .tabItem {
+                Label("Search", systemImage: "magnifyingglass")
+            }
+
+            NavigationStack {
+                Text("library to show likes ")
+            }
+            .tabItem {
+                Label("Library", systemImage: "music.note.list")
+            }
+
+            NavigationStack {
+                Text("todo profile")
+            }
+            .tabItem {
+                Label("Profile", systemImage: "person.crop.circle")
+            }
         }
+        .accentColor(.green)
         .preferredColorScheme(.dark)
     }
 }
