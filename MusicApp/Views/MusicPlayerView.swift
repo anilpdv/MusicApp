@@ -16,11 +16,12 @@ struct MusicPlayerView: View {
     @State var albumArt: Image = Image(systemName: "photo")
     @State var showPlaylist = false
     @State var currentSongIndex = 0
+    @State var isLike = false
     @State var currentSong = CurrentSong(id: "", title: "", imageUrl: "", url: "", duration: 0)
     @Environment(MusicPlayerStore.self) private var musicStore
     @Environment(SongViewModel.self) private var songViewModel
     @Environment(\.presentationMode) var presentationMode
-
+    @Environment(\.modelContext) private var context
     var body: some View {
         VStack {
             ImageView(url: musicStore.currentSong.imageUrl, frameWidth: 320, frameHeight: 320)
@@ -80,7 +81,14 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for previous song
-                    if musicStore.currentType == "playlist" {
+
+                    if musicStore.currentType == "library" {
+                        if currentSongIndex < 0 {
+                            currentSongIndex = songViewModel.playlistRelatedSongsForLibrary.count - 1
+                        }
+                        let song = songViewModel.playlistRelatedSongsForLibrary[currentSongIndex]
+                        musicStore.setCurrentSongForLibrary(song: song)
+                    } else if musicStore.currentType == "playlist" {
                         if currentSongIndex < 0 {
                             currentSongIndex = songViewModel.playlistRelatedSongs.count - 1
                         }
@@ -117,8 +125,13 @@ struct MusicPlayerView: View {
 
                 Spacer()
                 Button(action: {
-                    // Add your logic for next song
-                    if musicStore.currentType == "playlist" {
+                    if musicStore.currentType == "library" {
+                        if currentSongIndex >= songViewModel.playlistRelatedSongsForLibrary.count {
+                            self.currentSongIndex = 0
+                        }
+                        let song = songViewModel.playlistRelatedSongsForLibrary[currentSongIndex]
+                        musicStore.setCurrentSongForLibrary(song: song)
+                    } else if musicStore.currentType == "playlist" {
                         if currentSongIndex >= songViewModel.playlistRelatedSongs.count {
                             self.currentSongIndex = 0
                         }
@@ -144,9 +157,52 @@ struct MusicPlayerView: View {
                 Spacer()
                 Button(action: {
                     // Add your logic for download
+                    withAnimation {
+                        isLike.toggle()
+                    }
+                    let song = SongStore(id: musicStore.currentSong.id, title: musicStore.currentSong.title, imageUrl: musicStore.currentSong.imageUrl, url: musicStore.currentSong.url, duration: musicStore.currentSong.duration)
+
+                    let songDownloadTask = URLSession.shared.downloadTask(with: URL(string: musicStore.currentSong.url)!) { location, _, error in
+                        guard let location = location else {
+                            print("Error downloading song: \(error?.localizedDescription ?? "Unknown error")")
+                            return
+                        }
+
+                        let documentsDirectoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                        let destinationURL = documentsDirectoryURL.appendingPathComponent("\(song.id).mp3")
+
+                        do {
+                            try FileManager.default.moveItem(at: location, to: destinationURL)
+                            song.url = destinationURL.absoluteString
+
+                            let imageDownloadTask = URLSession.shared.downloadTask(with: URL(string: musicStore.currentSong.imageUrl)!) { location, _, error in
+                                guard let location = location else {
+                                    print("Error downloading image: \(error?.localizedDescription ?? "Unknown error")")
+                                    return
+                                }
+
+                                let documentsDirectoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                                let destinationURL = documentsDirectoryURL.appendingPathComponent("\(song.id).jpg")
+
+                                do {
+                                    try FileManager.default.moveItem(at: location, to: destinationURL)
+                                    song.imageUrl = destinationURL.absoluteString
+                                    context.insert(song)
+                                } catch {
+                                    print("Error saving image to device: \(error.localizedDescription)")
+                                }
+                            }
+
+                            imageDownloadTask.resume()
+                        } catch {
+                            print("Error saving song to device: \(error.localizedDescription)")
+                        }
+                    }
+
+                    songDownloadTask.resume()
 
                 }) {
-                    Image(systemName: "arrow.down.circle")
+                    Image(systemName: isLike ? "heart.fill" : "heart")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 30, height: 30)
@@ -172,7 +228,16 @@ struct MusicPlayerView: View {
         }
         .sheet(isPresented: $showPlaylist, content: {
             NavigationStack {
-                if musicStore.currentType == "playlist" {
+                if musicStore.currentType == "library" {
+                    List(songViewModel.playlistRelatedSongsForLibrary, id: \.id) { song in
+
+                        Button {
+                            musicStore.setCurrentSongForLibrary(song: song)
+                        } label: {
+                            LibraryItemView(song: song)
+                        }
+                    }
+                } else if musicStore.currentType == "playlist" {
                     List(songViewModel.playlistRelatedSongs, id: \.track.id) { song in
 
                         Button {
@@ -196,20 +261,39 @@ struct MusicPlayerView: View {
         })
 
         .padding()
+        .onChange(of: audioPlayer.isSongEnded
+                  , { _, newValue in
+
+                      if !isDragging && newValue {
+                          print("song finished")
+                          currentSongIndex += 1
+                          if musicStore.currentType == "library" {
+                              print("setting the player for library")
+                              if currentSongIndex >= songViewModel.playlistRelatedSongsForLibrary.count {
+                                  currentSongIndex = 0
+                              }
+                              let song = songViewModel.playlistRelatedSongsForLibrary[currentSongIndex]
+                              print("library current song", song)
+                              musicStore.setCurrentSongForLibrary(song: song)
+                          } else if musicStore.currentType == "playlist" {
+                              if currentSongIndex >= songViewModel.playlistRelatedSongs.count {
+                                  currentSongIndex = 0
+                              }
+                              let song = songViewModel.playlistRelatedSongs[currentSongIndex]
+                              musicStore.setCurrentSongForPlaylist(song: song)
+                          } else {
+                              if currentSongIndex >= songViewModel.relatedSongs.count {
+                                  currentSongIndex = 0
+                              }
+                              let song = songViewModel.relatedSongs[currentSongIndex]
+                              musicStore.setCurrentSong(song: song)
+                          }
+                      }
+                  })
         .onChange(of: audioPlayer.currentTime, { _, newValue in
             if !isDragging {
                 sliderValue = newValue
             }
-            let songLength = Double(musicStore.currentSong.duration) / 1000.0
-            if !isDragging && newValue >= songLength {
-                currentSongIndex += 1
-                if currentSongIndex >= songViewModel.relatedSongs.count {
-                    currentSongIndex = 0
-                }
-                let song = songViewModel.relatedSongs[currentSongIndex]
-                musicStore.setCurrentSong(song: song)
-            }
-
         })
         .onAppear {
             Task {
@@ -233,7 +317,12 @@ class AudioPlayer: ObservableObject {
     private var audioPlayer: AVPlayer?
     @Published var isPlaying = false
     @Published var currentTime: Double = 0
+    @Published var isSongEnded = false
+
     static let shared = AudioPlayer()
+    init() {
+        NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
+    }
 
     func addPeriodicTimeObserver() {
         let timeInterval = CMTime(seconds: 0.01, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -258,12 +347,15 @@ class AudioPlayer: ObservableObject {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay, .allowBluetoothA2DP, .allowBluetooth])
             try AVAudioSession.sharedInstance().setActive(true)
+          
         } catch {
             print("Error setting up audio session: \(error.localizedDescription)")
         }
         addPeriodicTimeObserver()
     }
 
+    
+    
     func playAudio() {
         print("started playing audio")
         audioPlayer?.play()
@@ -287,6 +379,13 @@ class AudioPlayer: ObservableObject {
     func stopAudio() {
         audioPlayer?.pause()
         audioPlayer = nil
+    }
+
+    @objc func playerDidFinishPlaying(notification: Notification) {
+        // This method will be called when the current song has finished playing.
+        // Set the isSongEnded flag to true.
+        print(notification)
+        isSongEnded = true
     }
 }
 

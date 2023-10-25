@@ -10,7 +10,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
     @State var musicStore = MusicPlayerStore()
     var body: some View {
         TabView {
@@ -29,7 +28,7 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                Text("library to show likes ")
+                LibraryView()
             }
             .tabItem {
                 Label("Library", systemImage: "music.note.list")

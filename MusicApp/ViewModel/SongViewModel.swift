@@ -10,7 +10,6 @@ import Observation
 
 let BASE_URL = "https://agile-journey-25441-7adaeb370f64.herokuapp.com"
 
-
 @Observable class SongViewModel {
     var songList = [Track]()
     var relatedSongs = [Track]()
@@ -20,6 +19,7 @@ let BASE_URL = "https://agile-journey-25441-7adaeb370f64.herokuapp.com"
     var categoriesPlaylists = [Playlist]()
     var playlistSongs = [PlaylistItem]()
     var playlistRelatedSongs = [PlaylistItem]()
+    var playlistRelatedSongsForLibrary = [SongStore]()
     var currentSong = CurrentSong(id: "", title: "", imageUrl: "", url: "", duration: 0)
 
     func fetchSongs(query: String) {
@@ -123,7 +123,9 @@ let BASE_URL = "https://agile-journey-25441-7adaeb370f64.herokuapp.com"
         playlistRelatedSongs = Array(songs.dropFirst())
     }
 
-   
+    func setRelatedSongsForLibrary(songs: [SongStore]) {
+        playlistRelatedSongsForLibrary = Array(songs.dropFirst())
+    }
 
     private func fetchData<T: Decodable>(url: URL, completion: @escaping (T) -> Void) {
         var request = URLRequest(url: url)
@@ -177,6 +179,11 @@ let BASE_URL = "https://agile-journey-25441-7adaeb370f64.herokuapp.com"
 
         currentSong = CurrentSong(id: song.track.id, title: song.track.name, imageUrl: imageUrl, url: "\(BASE_URL)/listen/\(song.track.artists[0].name) - \(song.track.name)", duration: song.track.durationMs)
         currentType = "playlist"
+    }
+
+    func setCurrentSongForLibrary(song: SongStore) {
+        currentSong = CurrentSong(id: song.id, title: song.title, imageUrl: song.imageUrl, url: song.url, duration: song.duration)
+        currentType = "library"
     }
 }
 
